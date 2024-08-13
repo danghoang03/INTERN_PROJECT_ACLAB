@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Farm Management Dashboard</title>
+    <link rel="stylesheet" type="text/css" href="styles.css">
+</head>
+<body>
+
+    <div class="sidebar">
+        <h2>SMART FARM</h2>
+        <a href="/dashboard">Dashboard</a>
+        <a href="/control-device">Điều khiển thiết bị</a>
+        <a href="#">Giám sát thiết bị</a>
+        <a href="#">Lịch sử hoạt động</a>
+    </div>
+
+    <div class="main-content">
+        <div class="card">
+            <h2>Temperature</h2>
+            <div class="card-icon">🌡️</div>
+            <p>Current Value: <span id="temperature"></span><span>&deg;C</span></p>
+        </div>
+        <div class="card">
+            <h2>Humidity</h2>
+            <div class="card-icon">💧</div>
+            <p>Current Value: <span id="humidity"></span><span>&percnt;</span></p>
+        </div>
+        <div class="card">
+            <h2>Soil Moisture</h2>
+            <div class="card-icon">🌱</div>
+            <p>Current Value: <span id="moisture"></span><span>&percnt;</span></p>
+        </div>
+        <div class="card">
+            <h2>Light Intensity</h2>
+            <div class="card-icon">☀️</div>
+            <p>Current Value: <span id="light"></span> <span>Lux</span></p>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

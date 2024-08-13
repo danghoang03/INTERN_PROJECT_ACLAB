@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Device Control</title>
+    <link rel="stylesheet" type="text/css" href="styles2.css">
+</head>
+<body>
+
+    <div class="sidebar">
+        <h2>SMART FARM</h2>
+        <a href="/dashboard">Dashboard</a>
+        <a href="/control-device">Điều khiển thiết bị</a>
+        <a href="#">Giám sát thiết bị</a>
+        <a href="#">Lịch sử hoạt động</a>
+    </div>
+
+    <div class="main-content">
+        <div class="device-container">
+            <div class="device-box">
+                <div class="device-name">Relay 1</div>
+                <div class="device-icon">⚙️</div>
+                <div class="device-status">Status: <span id="state1" %STYLE1%>%STATE1%</span></div>
+                %TOGGLE1%
+            </div>
+            <div class="device-box">
+                <div class="device-name">Relay 2</div>
+                <div class="device-icon">⚙️</div>
+                <div class="device-status">Status: <span id="state2" %STYLE2%>%STATE2%</span></div>
+                %TOGGLE2%
+            </div>
+            <div class="device-box">
+                <div class="device-name">Relay 3</div>
+                <div class="device-icon">⚙️</div>
+                <div class="device-status">Status: <span id="state3" %STYLE3%>%STATE3%</span></div>
+                %TOGGLE3%
+            </div>
+            <div class="device-box">
+                <div class="device-name">Relay 4</div>
+                <div class="device-icon">⚙️</div>
+                <div class="device-status">Status: <span id="state4" %STYLE4%>%STATE4%</span></div>
+                %TOGGLE4%
+            </div>
+            <div class="device-box">
+                <div class="device-name">Relay 5</div>
+                <div class="device-icon">⚙️</div>
+                <div class="device-status">Status: <span id="state5" %STYLE5%>%STATE5%</span></div>
+                %TOGGLE5%
+            </div>
+            <div class="device-box">
+                <div class="device-name">Relay 6</div>
+                <div class="device-icon">⚙️</div>
+                <div class="device-status">Status: <span id="state6" %STYLE6%>%STATE6%</span></div>
+                %TOGGLE6%
+            </div>
+        </div>
+    </div>
+    <script src="script2.js"></script>
+</body>
+</html>
