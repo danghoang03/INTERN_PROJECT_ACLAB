@@ -13,10 +13,10 @@ const char* ssid = "ACLAB";
 const char* password = "ACLAB2023";
 const char* mqttServer = "io.adafruit.com";
 const int mqttPort = 1883;
-const char* mqttUser = "YOUR_USERNAME";
-const char* mqttPassword = "YOUR_PASSWORD";
-const char* mqttTopic = "TOPIC_SENSOR_VALUE"; 
-const char* mqttRelay = "TOPIC_RELAY";
+const char* mqttUser = "dang03";
+const char* mqttPassword = "Active_Key";
+const char* mqttTopic = "dang03/feeds/dashboard"; 
+const char* mqttRelay = "dang03/feeds/relay";
 
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -31,8 +31,14 @@ DHT20 DHT;
 #define lightSensor 1
 #define moistureSensor 3
 
-unsigned long lastTime = 0;
-unsigned long timerDelay = 3000;
+unsigned long lastTimeTask1 = 0;
+unsigned long timerDelayTask1 = 1000;
+
+unsigned long lastTimeTask2 = 0;
+unsigned long timerDelayTask2 = 5000;
+
+void taskMQTTRelay(void *pvParameters);
+void taskReadSensors(void *pvParameters);
 
 void sendModbusCommand(const uint8_t command[], size_t length)
 {
@@ -118,9 +124,6 @@ void setup() {
 
   Wire.begin(SDA, SCL);
   DHT.begin();
-
-  pinMode(lightSensor, OUTPUT);
-  pinMode(moistureSensor, OUTPUT);
   
   setupWiFi();
 
@@ -128,17 +131,37 @@ void setup() {
   client.setCallback(mqttCallBack);
   
   connectBroker();
+
+  xTaskCreate(taskMQTTRelay, "Task MQTT Relay", 2048, NULL, 2, NULL);
+  xTaskCreate(taskReadSensors, "Task Read Sensors", 2048, NULL, 2, NULL);
 }
 
 void loop() {
-  if (!client.connected()) {
-    connectBroker();
-  }
-  client.loop();
+}
 
-  if(millis() - lastTime >= timerDelay){
-    sendSensorData();
-    lastTime = millis();
+void taskMQTTRelay(void *pvParameters) {
+  while(1) {
+    if (!client.connected()) {
+      connectBroker();
+    }
+    client.loop();
+
+    while(millis() - lastTimeTask1 < timerDelayTask1) {
+      continue;
+    }
+    lastTimeTask1 = millis();
   }
 }
 
+void taskReadSensors(void *pvParameters) {
+  pinMode(lightSensor, OUTPUT);
+  pinMode(moistureSensor, OUTPUT);
+
+  while(1){
+    sendSensorData();
+    while(millis() - lastTimeTask2 < timerDelayTask2) {
+      continue;
+    }
+    lastTimeTask2 = millis();
+  }
+}

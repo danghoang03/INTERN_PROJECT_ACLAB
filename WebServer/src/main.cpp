@@ -8,16 +8,23 @@
 #include "DHT20.h"
 #include <Wire.h>
 #include <PubSubClient.h>
+#include "time.h"
+#include <HTTPClient.h>
 
 
 const char* ssid = "ACLAB";
 const char* password = "ACLAB2023";
 const char* mqttServer = "io.adafruit.com";
 const int mqttPort = 1883;
-const char* mqttUser = "YOUR_USERNAME";
-const char* mqttPassword = "YOUR_PASSWORD";
-const char* mqttTopic = "TOPIC_SENSOR_VALUE"; 
-const char* mqttTopicRelay = "TOPIC_RELAY";
+const char* mqttUser = "dang03";
+const char* mqttPassword = "Active_Key";
+const char* mqttTopic = "dang03/feeds/dashboard"; 
+const char* mqttTopicRelay = "dang03/feeds/relay";
+const char* mqttTopicRelayHistory = "dang03/feeds/relay_history";
+
+const char* ntpServer = "pool.ntp.org";
+const long  gmtOffset_sec = 25200;
+const int   daylightOffset_sec = 0;
 
 
 // Create AsyncWebServer object on port 80
@@ -32,12 +39,15 @@ PubSubClient mqttClient(espClient);
 // Json Variable to Hold Sensor Readings
 JSONVar receivedData;
 
+
 // Boolean array to hold relay state
 bool relayState[6] = {false, false, false, false, false, false};
 
-// Timer variables
+unsigned long relayStartTime[6] = {0, 0, 0, 0, 0, 0};
+unsigned long relayElapsedTime[6] = {0, 0, 0, 0, 0, 0};
+
 unsigned long lastTime = 0;
-unsigned long timerDelay = 3000;
+unsigned long timerDelay = 1000;
 
 // Initialize WiFi
 void initWiFi() {
@@ -62,6 +72,7 @@ void connectBroker() {
     if (mqttClient.connect("Dang-server", mqttUser, mqttPassword)) {
       Serial.println("Connected");
       mqttClient.subscribe(mqttTopic);
+      mqttClient.subscribe(mqttTopicRelayHistory);
     } else {
       Serial.print("Failed, rc=");
       Serial.print(mqttClient.state());
@@ -80,6 +91,15 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   Serial.println(topic);
   Serial.print("Message: ");
   Serial.println(message);
+
+  if (String(topic) == String(mqttTopic)) {
+    receivedData = JSON.parse(message);
+    String jsonString = JSON.stringify(receivedData);
+    notifyClients(jsonString);
+  } else if (String(topic) == String(mqttTopicRelayHistory)) {
+    // Forward the relay history data to WebSocket clients
+    ws.textAll("HISTORY|" + message); // Prefixing with 'HISTORY|' to identify the message type
+  }
 
   receivedData = JSON.parse(message);
   String jsonString = JSON.stringify(receivedData);
@@ -103,6 +123,32 @@ void sendRelayControl(int relayId, bool relayState) {
   mqttClient.publish(mqttTopicRelay, payload.c_str());
 }
 
+void sendRelayHistory(int relayId, bool relayState) {
+  // Get current time
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo)) {
+    Serial.println("Failed to obtain time");
+    return;
+  }
+  String dateTime = String(timeinfo.tm_year + 1900) + "-" + 
+                    String(timeinfo.tm_mon + 1) + "-" + 
+                    String(timeinfo.tm_mday) + " " + 
+                    String(timeinfo.tm_hour) + ":" + 
+                    String(timeinfo.tm_min) + ":" + 
+                    String(timeinfo.tm_sec);
+
+  String state = relayState ? "ON" : "OFF"; 
+  String payload = "{";
+  payload += "\"relayId\": " + String(relayId) + ",";
+  payload += "\"state\": \"" + state + "\",";
+  payload += "\"timestamp\": \"" + dateTime + "\"";
+  payload += "}";
+
+  Serial.print("Publishing relay history: ");
+  Serial.println(payload);
+  mqttClient.publish(mqttTopicRelayHistory, payload.c_str());
+}
+
 
 void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
   AwsFrameInfo *info = (AwsFrameInfo*)arg;
@@ -113,12 +159,15 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
     if (message == "RELAY1") {
       relayState[0] =!relayState[0];
       sendRelayControl(1, relayState[0]);
+      sendRelayHistory(1, relayState[0]);
       String message = "";
       if (relayState[0]) {
         message = "RELAY1_ON";
+        relayStartTime[0] = millis();
       }
       else {
         message = "RELAY1_OFF";
+        relayElapsedTime[0] = 0;
       }
       ws.textAll(message);
     }
@@ -126,12 +175,15 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
     else if (message == "RELAY2") {
       relayState[1] = !relayState[1];
       sendRelayControl(2, relayState[1]);
+      sendRelayHistory(2, relayState[1]);
       String message = "";
       if (relayState[1]) {
         message = "RELAY2_ON";
+        relayStartTime[1] = millis();
       }
       else {
         message = "RELAY2_OFF";
+        relayElapsedTime[1] = 0;
       }
       ws.textAll(message);
     }
@@ -139,12 +191,15 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
     else if (message == "RELAY3") {
       relayState[2] =!relayState[2];
       sendRelayControl(3, relayState[2]);
+      sendRelayHistory(3, relayState[2]);
       String message = "";
       if (relayState[2]) {
         message = "RELAY3_ON";
+        relayStartTime[2] = millis();
       }
       else {
         message = "RELAY3_OFF";
+        relayElapsedTime[2] = 0;
       }
       ws.textAll(message);
     }
@@ -152,12 +207,15 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
     else if (message == "RELAY4") {
       relayState[3] =!relayState[3];
       sendRelayControl(4, relayState[3]);
+      sendRelayHistory(4, relayState[3]);
       String message = "";
       if (relayState[3]) {
         message = "RELAY4_ON";
+        relayStartTime[3] = millis();
       }
       else {
         message = "RELAY4_OFF";
+        relayElapsedTime[3] = 0;
       }
       ws.textAll(message);
     }
@@ -165,12 +223,15 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
     else if (message == "RELAY5") {
       relayState[4] =!relayState[4];
       sendRelayControl(5, relayState[4]);
+      sendRelayHistory(5, relayState[4]);
       String message = "";
       if (relayState[4]) {
         message = "RELAY5_ON";
+        relayStartTime[4] = millis();
       }
       else {
         message = "RELAY5_OFF";
+        relayElapsedTime[4] = 0;
       }
       ws.textAll(message);
     }
@@ -178,12 +239,15 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
     else if (message == "RELAY6") {
       relayState[5] =!relayState[5];
       sendRelayControl(6, relayState[5]);
+      sendRelayHistory(6, relayState[5]);
       String message = "";
       if (relayState[5]) {
         message = "RELAY6_ON";
+        relayStartTime[5] = millis();
       }
       else {
         message = "RELAY6_OFF";
+        relayElapsedTime[5] = 0;
       }
       ws.textAll(message);
     }
@@ -225,22 +289,22 @@ String outputState(int relayId) {
 
 String processor(const String& var){
   if (var == "STATE1") {
-    return relayState[0] ? "ON" : "OFF";
+    return relayState[0] ? "Đang hoạt động" : "Đang tắt";
   }
   else if (var == "STATE2") {
-    return relayState[1] ? "ON" : "OFF";
+    return relayState[1] ? "Đang hoạt động" : "Đang tắt";
   }
   else if (var == "STATE3") {
-    return relayState[2] ? "ON" : "OFF";
+    return relayState[2] ? "Đang hoạt động" : "Đang tắt";
   }
   else if (var == "STATE4") {
-    return relayState[3] ? "ON" : "OFF";
+    return relayState[3] ? "Đang hoạt động" : "Đang tắt";
   }
   else if (var == "STATE5") {
-    return relayState[4] ? "ON" : "OFF";
+    return relayState[4] ? "Đang hoạt động" : "Đang tắt";
   }
   else if (var == "STATE6") {
-    return relayState[5] ? "ON" : "OFF";
+    return relayState[5] ? "Đang hoạt động" : "Đang tắt";
   }
   
   if (var == "STYLE1") {
@@ -264,6 +328,54 @@ String processor(const String& var){
   }
 
   else if (var == "STYLE6") {
+    return relayState[5] ? "style=\"color: blue;\"" : "style=\"color: red;\"";
+  }
+
+  if (var == "STATE_MONITOR1") {
+    return relayState[0] ? "Đang hoạt động" : "Đang tắt";
+  }
+
+  else if (var == "STATE_MONITOR2") {
+    return relayState[1] ? "Đang hoạt động" : "Đang tắt";
+  }
+
+  else if (var == "STATE_MONITOR3") {
+    return relayState[2] ? "Đang hoạt động" : "Đang tắt";
+  }
+
+  else if (var == "STATE_MONITOR4") {
+    return relayState[3] ? "Đang hoạt động" : "Đang tắt";
+  }
+
+  else if (var == "STATE_MONITOR5") {
+    return relayState[4] ? "Đang hoạt động" : "Đang tắt";
+  }
+
+  else if (var == "STATE_MONITOR6") {
+    return relayState[5] ? "Đang hoạt động" : "Đang tắt";
+  }
+
+  if (var == "STYLE1_MONI") {
+    return relayState[0] ? "style=\"color: blue;\"" : "style=\"color: red;\"";
+  }
+
+  else if (var == "STYLE2_MONI") {
+    return relayState[1] ? "style=\"color: blue;\"" : "style=\"color: red;\"";
+  }
+
+  else if (var == "STYLE3_MONI") {
+    return relayState[2] ? "style=\"color: blue;\"" : "style=\"color: red;\"";
+  }
+
+  else if (var == "STYLE4_MONI") {
+    return relayState[3] ? "style=\"color: blue;\"" : "style=\"color: red;\"";
+  }
+
+  else if (var == "STYLE5_MONI") {
+    return relayState[4] ? "style=\"color: blue;\"" : "style=\"color: red;\"";
+  }
+
+  else if (var == "STYLE6_MONI") {
     return relayState[5] ? "style=\"color: blue;\"" : "style=\"color: red;\"";
   }
 
@@ -291,14 +403,91 @@ String processor(const String& var){
     return relayState[5] ? "<label class=\"switch\"> <input type=\"checkbox\" onclick=\"toggleRelay(this)\" id=\"6\" checked> <span class=\"slider\"></span></label>"
                          : "<label class=\"switch\"> <input type=\"checkbox\" onclick=\"toggleRelay(this)\" id=\"6\"> <span class=\"slider\"></span></label>";
   }
+
+  if (var == "UPTIME1") {
+    unsigned long elapsed = relayElapsedTime[0];
+    int hours = (elapsed / 3600000);
+    int minutes = (elapsed % 3600000) / 60000;
+    return String(hours) + " giờ " + String(minutes) + " phút";
+  }
+  else if (var == "UPTIME2") {
+    unsigned long elapsed = relayElapsedTime[1];
+    int hours = (elapsed / 3600000);
+    int minutes = (elapsed % 3600000) / 60000;
+    return String(hours) + " giờ " + String(minutes) + " phút";
+  }
+  else if (var == "UPTIME3") {
+    unsigned long elapsed = relayElapsedTime[2];
+    int hours = (elapsed / 3600000);
+    int minutes = (elapsed % 3600000) / 60000;
+    return String(hours) + " giờ " + String(minutes) + " phút";
+  }
+  else if (var == "UPTIME4") {
+    unsigned long elapsed = relayElapsedTime[3];
+    int hours = (elapsed / 3600000);
+    int minutes = (elapsed % 3600000) / 60000;
+    return String(hours) + " giờ " + String(minutes) + " phút";
+  }
+  else if (var == "UPTIME5") {
+    unsigned long elapsed = relayElapsedTime[4];
+    int hours = (elapsed / 3600000);
+    int minutes = (elapsed % 3600000) / 60000;
+    return String(hours) + " giờ " + String(minutes) + " phút";
+  }
+  else if (var == "UPTIME6") {
+    unsigned long elapsed = relayElapsedTime[5];
+    int hours = (elapsed / 3600000);
+    int minutes = (elapsed % 3600000) / 60000;
+    return String(hours) + " giờ " + String(minutes) + " phút";
+  }
+
   return String();
 }
+
+void sendRelayTimeToClients() {
+    String message = "{ \"relayTimes\": [";
+    for (int i = 0; i < 6; i++) {
+        if (i > 0) message += ", ";
+        message += String(relayElapsedTime[i]);
+    }
+    message += "] }";
+    ws.textAll(message);
+}
+
+void updateRelayElapsedTime() {
+  for (int i = 0; i < 6; i++) {
+    if (relayState[i]) {
+      relayElapsedTime[i] = millis() - relayStartTime[i];
+    }
+  }
+  sendRelayTimeToClients();
+}
+
+HTTPClient http;
+
+void handleGetHistory(AsyncWebServerRequest *request) {
+  String url = "https://io.adafruit.com/api/v2/dang03/feeds/relay-history/data?limit=100&X-AIO-Key=Active_Key"; // Fetch last 100 entries
+  http.begin(url);
+  int httpCode = http.GET();
+
+  if (httpCode > 0) {
+    String payload = http.getString();
+    Serial.println(payload);
+    request->send(200, "application/json", payload);
+  } else {
+    request->send(500, "text/plain", "Error fetching data");
+  }
+  http.end();
+}
+
 
 void setup() {
   Serial.begin(115200);
   initWiFi();
   initWebSocket();
   initMQTT();
+
+  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 
   if(!SPIFFS.begin(true)){
   Serial.println("An Error has occurred while mounting SPIFFS");
@@ -311,11 +500,11 @@ void setup() {
   });
 
   server.on("/styles.css", HTTP_GET, [](AsyncWebServerRequest *request){
-  request->send(SPIFFS, "/styles.css","text/css");
+    request->send(SPIFFS, "/styles.css","text/css");
   });  
   
   server.on("/script.js", HTTP_GET, [](AsyncWebServerRequest *request){
-  request->send(SPIFFS, "/script.js","text/javascript");
+    request->send(SPIFFS, "/script.js","text/javascript");
   });
 
   server.on("/dashboard", HTTP_GET, [](AsyncWebServerRequest *request) {
@@ -327,13 +516,40 @@ void setup() {
   });
 
   server.on("/styles2.css", HTTP_GET, [](AsyncWebServerRequest *request){
-  request->send(SPIFFS, "/styles2.css","text/css");
+    request->send(SPIFFS, "/styles2.css","text/css");
   });  
 
   server.on("/script2.js", HTTP_GET, [](AsyncWebServerRequest *request){
-  request->send(SPIFFS, "/script2.js","text/javascript");
+    request->send(SPIFFS, "/script2.js","text/javascript");
+  });
+
+  server.on("/monitor-device", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/monitor.html", "text/html", false, processor);
   });
   
+  server.on("/styles3.css", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/styles3.css","text/css");
+  });
+
+  server.on("/script3.js", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/script3.js","text/javascript");
+  });
+
+  server.on("/history", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/history.html", "text/html", false, processor);
+  });
+  
+  server.on("/styles4.css", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/styles4.css","text/css");
+  });
+
+  server.on("/script4.js", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/script4.js","text/javascript");
+  });
+
+  server.on("/getHistory", HTTP_GET, [](AsyncWebServerRequest *request){
+    handleGetHistory(request);
+});
 
   // Start server
   server.begin();
@@ -344,5 +560,11 @@ void loop() {
     connectBroker();
   }
   mqttClient.loop();
+
+  if(millis() - lastTime >= timerDelay) {
+    updateRelayElapsedTime();
+    lastTime = millis();
+  }
+
   ws.cleanupClients();
 }

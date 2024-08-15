@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitor Device</title>
+    <link rel="stylesheet" type="text/css" href="styles3.css">
+</head>
+<body>
+
+    <div class="sidebar">
+        <h2>SMART FARM</h2>
+        <a href="/dashboard">Dashboard</a>
+        <a href="/control-device">Điều khiển thiết bị</a>
+        <a href="/monitor-device">Giám sát thiết bị</a>
+        <a href="/history">Lịch sử hoạt động</a>
+    </div>
+
+    <div class="main-content">
+        <div class="device-monitor">
+            <div class="device">
+                <h3>Relay 1</h3>
+                <div class="device-icon">⚙️</div>
+                <p>Trạng thái: <span class="status" id="state1" %STYLE1_MONI%>%STATE_MONITOR1%</span></p>
+                <p>Thời gian hoạt động: <span class="uptime" id="uptime1">%UPTIME1%</span></p>
+            </div>
+            <div class="device">
+                <h3>Relay 2</h3>
+                <div class="device-icon">⚙️</div>
+                <p>Trạng thái: <span class="status" id="state2" %STYLE2_MONI%>%STATE_MONITOR2%</span></p>
+                <p>Thời gian hoạt động: <span class="uptime" id="uptime2">%UPTIME2%</span></p>
+            </div>
+            <div class="device">
+                <h3>Relay 3</h3>
+                <div class="device-icon">⚙️</div>
+                <p>Trạng thái: <span class="status" id="state3" %STYLE3_MONI%>%STATE_MONITOR3%</span></p>
+                <p>Thời gian hoạt động: <span class="uptime" id="uptime3">%UPTIME3%</span></p>
+            </div>
+            <div class="device">
+                <h3>Relay 4</h3>
+                <div class="device-icon">⚙️</div>
+                <p>Trạng thái: <span class="status" id="state4" %STYLE4_MONI%>%STATE_MONITOR4%</span></p>
+                <p>Thời gian hoạt động: <span class="uptime" id="uptime4">%UPTIME4%</span></p>
+            </div>
+            <div class="device">
+                <h3>Relay 5</h3>
+                <div class="device-icon">⚙️</div>
+                <p>Trạng thái: <span class="status" id="state5" %STYLE5_MONI%>%STATE_MONITOR5%</span></p>
+                <p>Thời gian hoạt động: <span class="uptime" id="uptime5">%UPTIME5%</span></p>
+            </div>
+            <div class="device">
+                <h3>Relay 6</h3>
+                <div class="device-icon">⚙️</div>
+                <p>Trạng thái: <span class="status" id="state6" %STYLE6_MONI%>%STATE_MONITOR6%</span></p>
+                <p>Thời gian hoạt động: <span class="uptime" id="uptime6">%UPTIME6%</span></p>
+            </div>
+        </div>
+    </div>
+    <script src="script3.js"></script>
+</body>
+</html>
